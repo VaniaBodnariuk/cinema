@@ -6,7 +6,7 @@ import com.cinema.model.Genre;
 import com.cinema.model.Movie;
 import com.cinema.repository.genre.GenreFileRepository;
 import com.cinema.repository.movie.MovieFileRepository;
-import com.cinema.utility.file.FileUtility;
+import com.cinema.utility.file.basic.FileUtility;
 import java.io.IOException;
 import java.util.*;
 import java.util.stream.Stream;

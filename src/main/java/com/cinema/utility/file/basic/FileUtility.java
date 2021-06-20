@@ -1,4 +1,4 @@
-package com.cinema.utility.file;
+package com.cinema.utility.file.basic;
 
 import java.io.File;
 import java.io.IOException;

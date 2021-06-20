@@ -1,4 +1,4 @@
-package com.cinema.utility.file.csv.impls;
+package com.cinema.utility.file.csv.impl;
 
 import com.cinema.utility.file.csv.CsvFileUtility;
 import com.cinema.utility.validator.ValidatorUtility;
