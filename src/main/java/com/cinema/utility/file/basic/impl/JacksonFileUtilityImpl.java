@@ -29,12 +29,12 @@ public class JacksonFileUtilityImpl<T> implements FileUtility<T> {
         configureObjectMapperForDateTimeWork(objectMapper);
     }
 
-    /*public static <T> JacksonFileUtilityImpl<T> createInstanceForJson(
+    public static <T> JacksonFileUtilityImpl<T> createInstanceForJson(
                                       Class<T> tClass, String fileName) {
         return new JacksonFileUtilityImpl<>(tClass, fileName, "json",
                                             new ObjectMapper());
     }
-*/
+
     public static <T> JacksonFileUtilityImpl<T> createInstanceForYaml(
                                       Class<T> tClass, String fileName) {
         return new JacksonFileUtilityImpl<>(tClass, fileName, "yaml",
