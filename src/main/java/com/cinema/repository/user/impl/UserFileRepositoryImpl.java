@@ -4,58 +4,91 @@ import com.cinema.exception.NotFoundException;
 import com.cinema.exception.UniqueFieldException;
 import com.cinema.model.Ticket;
 import com.cinema.model.User;
-import com.cinema.repository.ticket.TicketFileRepository;
-import com.cinema.repository.user.UserFileRepository;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import java.io.File;
-import java.io.IOException;
+import com.cinema.repository.ticket.TicketRepository;
+import com.cinema.repository.user.UserRepository;
+import com.cinema.utility.file.basic.FileUtility;
+import com.cinema.utility.validator.ValidatorUtility;
 import java.util.*;
 import java.util.stream.Stream;
 
-//TODO Include FileUtility and format code
-public class UserFileRepositoryImpl implements UserFileRepository {
-    private final File file;
+import static java.util.stream.Collectors.toList;
+
+public class UserFileRepositoryImpl implements UserRepository {
+    private final FileUtility<User> fileUtility;
     private final Map<UUID, User> localStorage;
-    private final TicketFileRepository ticketFileRepository;
+    private final TicketRepository ticketRepository;
 
-    public UserFileRepositoryImpl(File file,
-                                  TicketFileRepository ticketFileRepository)
-            throws IOException {
-        this.file = file;
-        this.localStorage = initLocalStorage();
-        this.ticketFileRepository = ticketFileRepository;
-    }
-
-    private Map<UUID, User> initLocalStorage() throws IOException {
-        if(file.length() == 0){
-            return new HashMap<>();
-        }
-        return getDataFromFileViaMap();
-    }
-
-    private Map<UUID, User> getDataFromFileViaMap() throws IOException{
-        Map<UUID, User> dataMap = new HashMap<>();
-        List<User> dataList = getDataFromFile();
-        dataList.forEach(model -> dataMap.put(model.getId(),model));
-        return dataMap;
-    }
-
-    private List<User> getDataFromFile() throws IOException {
-        ObjectMapper mapper = new ObjectMapper();
-        return Arrays.asList(mapper.readValue(file, User[].class));
-    }
-
-    public void saveDataToFile() throws IOException {
-        ObjectMapper mapper = new ObjectMapper();
-        mapper.writerWithDefaultPrettyPrinter()
-                .writeValue(file, localStorage.values());
+    public UserFileRepositoryImpl(FileUtility<User> fileUtility,
+                                  TicketRepository ticketRepository) {
+        this.fileUtility = fileUtility;
+        this.localStorage = getDataFromFileViaMap();
+        this.ticketRepository = ticketRepository;
     }
 
     @Override
-    public User create(User model) {
+    public void create(User model) {
+        ValidatorUtility.validateModel(model);
         checkPhoneForUniqueness(model);
-        localStorage.put(model.getId(),model);
-        return localStorage.get(model.getId());
+        save(model);
+    }
+
+    @Override
+    public List<User> getAll(){
+        return localStorage.values()
+                .stream()
+                .map(User::createCopy)
+                .collect(toList());
+    }
+
+    @Override
+    public User getById(UUID id){
+        checkIdForExisting(id);
+        return localStorage.get(id).createCopy();
+    }
+
+    @Override
+    public void update(User model){
+        ValidatorUtility.validateModel(model);
+        checkIdForExisting(model.getId());
+        User oldUser = getById(model.getId());
+        if(!oldUser.getPhone().equals(model.getPhone())){
+            checkPhoneForUniqueness(model);
+        }
+        updateReferencesInTickets(model);
+        save(model);
+    }
+
+    @Override
+    public void deleteById(UUID id){
+        checkIdForExisting(id);
+        deleteRelatedTickets(getById(id));
+        localStorage.remove(id);
+    }
+
+    @Override
+    public void synchronize() {
+        fileUtility.write(new ArrayList<>(localStorage.values()));
+    }
+
+    private void save(User model){
+        localStorage.put(model.getId(), model);
+    }
+
+    private void checkIdForExisting(UUID id){
+        if(!localStorage.containsKey(id)){
+            throw new NotFoundException(User.class.getName(), id);
+        }
+    }
+
+    private Map<UUID, User> getDataFromFileViaMap() {
+        List<User> dataList = fileUtility.read();
+        return convertDataListToDataMap(dataList);
+    }
+
+    private Map<UUID, User> convertDataListToDataMap(List<User> dataList){
+        Map<UUID,User> dataMap = new HashMap<>();
+        dataList.forEach(user -> dataMap.put(user.getId(), user));
+        return dataMap;
     }
 
     private void checkPhoneForUniqueness(User model) {
@@ -68,54 +101,28 @@ public class UserFileRepositoryImpl implements UserFileRepository {
     private boolean isPhoneAlreadyExists(User model){
         return getAll().stream()
                 .anyMatch(user -> user.getPhone()
-                                      .equals(model.getPhone()));
-    }
-
-    @Override
-    public List<User> getAll(){
-        return new ArrayList<>(localStorage.values());
-    }
-
-    @Override
-    public User getById(UUID id){
-        checkIdForExisting(id);
-        return localStorage.get(id);
-    }
-
-    private void checkIdForExisting(UUID id){
-        if(!localStorage.containsKey(id)){
-            throw new NotFoundException(User.class.getName(),id);
-        }
-    }
-
-    @Override
-    public User update(User model){
-        checkIdForExisting(model.getId());
-        checkPhoneForUniqueness(model);
-        updateReferencesInTickets(model);
-        localStorage.put(model.getId(),model);
-        return getById(model.getId());
+                        .equals(model.getPhone()));
     }
 
     private Stream<Ticket> findReferencesInTickets(User model){
-        return ticketFileRepository.getAll()
+        return ticketRepository.getAll()
                 .stream()
-                .filter(movie -> movie.getUser().equals(model));
+                .filter(ticket -> ticket.getUser().equals(model));
     }
 
     private void updateReferencesInTickets(User model){
-        findReferencesInTickets(model).forEach(movie -> movie.setUser(model));
+        findReferencesInTickets(model).forEach(ticket ->
+                updateReferenceInTicket(ticket,model)
+        );
     }
 
-    @Override
-    public User deleteById(UUID id){
-        checkIdForExisting(id);
-        deleteRelatedTickets(getById(id));
-        return localStorage.remove(id);
+    private void updateReferenceInTicket(Ticket ticket, User user){
+        ticket.setUser(user);
+        ticketRepository.update(ticket);
     }
 
     private void deleteRelatedTickets(User model){
-        findReferencesInTickets(model).forEach(movie
-                -> ticketFileRepository.deleteById(movie.getId()));
+        findReferencesInTickets(model).forEach(ticket ->
+                ticketRepository.deleteById(ticket.getId()));
     }
 }
