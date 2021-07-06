@@ -1,5 +1,6 @@
 package com.cinema.utility.file.basic.impl;
 
+import com.cinema.exception.DataException;
 import com.cinema.utility.file.basic.FileUtility;
 import com.cinema.utility.validator.ValidatorUtility;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -14,19 +15,20 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class JacksonFileUtilityImpl<T> implements FileUtility<T> {
-    private final File file;
+    private File file;
     private final ObjectMapper objectMapper;
     private final Class<T> tClass;
 
     private JacksonFileUtilityImpl(Class<T> tClass,
-                                   String fileName,
-                                   String fileFormat,
-                                   ObjectMapper objectMapper) {
+                                  String fileName,
+                                  String fileFormat,
+                                  ObjectMapper objectMapper) {
         ValidatorUtility.validateFileFormat(fileFormat,fileName);
         this.file = Paths.get(fileName).toFile();
         this.objectMapper = objectMapper;
         this.tClass = tClass;
-        configureObjectMapperForDateTimeWork(objectMapper);
+        configureObjectMapperForDateTime(objectMapper);
+        objectMapper.configure(SerializationFeature.INDENT_OUTPUT, true);
     }
 
     public static <T> JacksonFileUtilityImpl<T> createInstanceForJson(
@@ -43,17 +45,25 @@ public class JacksonFileUtilityImpl<T> implements FileUtility<T> {
     }
 
     @Override
-    public List<T> read() throws IOException {
-        CollectionType listType =
-                objectMapper.getTypeFactory()
-                            .constructCollectionType(ArrayList.class,
-                                                     tClass);
-        return objectMapper.readValue(file, listType);
+    public List<T> read() {
+        try {
+            checkFileForExisting();
+            if(file.length() == 0){
+                return new ArrayList<>();
+            }
+            return objectMapper.readValue(file, getListType());
+        } catch (IOException e) {
+            throw new DataException(e.getMessage(), e.getCause());
+        }
     }
 
     @Override
-    public void write(List<T> data) throws IOException {
-        objectMapper.writerWithDefaultPrettyPrinter().writeValue(file,data);
+    public void write(List<T> data) {
+        try {
+            objectMapper.writerWithDefaultPrettyPrinter().writeValue(file,data);
+        } catch (IOException e) {
+            throw new DataException(e.getMessage(), e.getCause());
+        }
     }
 
     @Override
@@ -61,12 +71,23 @@ public class JacksonFileUtilityImpl<T> implements FileUtility<T> {
         return file;
     }
 
-    private void configureObjectMapperForDateTimeWork(
+    private void configureObjectMapperForDateTime(
             ObjectMapper objectMapper){
         objectMapper.registerModule(new JavaTimeModule());
         objectMapper.disable(
                 SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
         objectMapper.disable(
                 SerializationFeature.WRITE_DURATIONS_AS_TIMESTAMPS);
+    }
+
+    private void checkFileForExisting() {
+        if(!file.canRead()){
+            file = new File(file.getName());
+        }
+    }
+
+    private CollectionType getListType(){
+        return objectMapper.getTypeFactory()
+                           .constructCollectionType(ArrayList.class, tClass);
     }
 }
