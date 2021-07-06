@@ -1,8 +1,7 @@
 package com.cinema.model;
 
-import com.cinema.utility.validator.ValidatorUtility;
+import com.opencsv.bean.CsvRecurse;
 import lombok.*;
-import javax.validation.constraints.FutureOrPresent;
 import javax.validation.constraints.NotNull;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -10,38 +9,30 @@ import java.util.UUID;
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 @Getter
+@Setter
 @ToString
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class Ticket {
     @EqualsAndHashCode.Include
     private UUID id;
     @NotNull(message = "Movie is required")
+    @CsvRecurse
     private Movie movie;
     @NotNull(message = "User is required")
+    @CsvRecurse
     private User user;
-    @FutureOrPresent
-    private LocalDateTime date = LocalDateTime.now();
+    private LocalDateTime date;
     @NotNull(message = "Price is required")
     private Double price;
 
-    public void setMovie(Movie movie) {
-        this.movie = movie;
-        ValidatorUtility.validateModel(movie);
-    }
-
-    public void setUser(User user) {
-        this.user = user;
-        ValidatorUtility.validateModel(this);
-    }
-
-    public void setDate(LocalDateTime date) {
-        this.date = date;
-        ValidatorUtility.validateModel(this);
-    }
-
-    public void setPrice(Double price) {
-        this.price = price;
-        ValidatorUtility.validateModel(this);
+    public Ticket createCopy(){
+        return Ticket.builder()
+                .id(this.id)
+                .user(this.user)
+                .movie(this.movie)
+                .price(this.price)
+                .date(this.date)
+                .build();
     }
 
     public static TicketBuilder builder() {
@@ -50,13 +41,18 @@ public class Ticket {
 
 
     public static class TicketBuilder {
-        private final UUID id = UUID.randomUUID();
+        private UUID id = UUID.randomUUID();
         private Movie movie;
         private User user;
-        private LocalDateTime date;
+        private LocalDateTime date = LocalDateTime.now();
         private Double price;
 
         TicketBuilder() {
+        }
+
+        public TicketBuilder id(UUID id){
+            this.id = id;
+            return this;
         }
 
         public TicketBuilder movie(Movie movie) {
@@ -80,17 +76,7 @@ public class Ticket {
         }
 
         public Ticket build() {
-            Ticket ticket = new Ticket(id, movie, user, date, price);
-            ValidatorUtility.validateModel(ticket);
-            return ticket;
-        }
-
-        public String toString() {
-            return "Ticket.TicketBuilder(id=" + this.id + ", "
-                   + "movie=" + this.movie + ", "
-                   + "user=" + this.user + ", "
-                   + "date=" + this.date + ", "
-                   + "price=" + this.price + ")";
+            return new Ticket(id, movie, user, date, price);
         }
     }
 }

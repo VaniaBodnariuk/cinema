@@ -1,6 +1,5 @@
 package com.cinema.model;
 
-import com.cinema.utility.validator.ValidatorUtility;
 import lombok.*;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Pattern;
@@ -9,13 +8,14 @@ import java.util.UUID;
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 @Getter
+@Setter
 @ToString
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class User {
     @EqualsAndHashCode.Include
     private UUID id;
     @NotNull(message = "Name is required")
-    @Pattern(regexp = "^([A-Z]{1}[a-z]+)( )([A-Z]{1}[a-z]+)$",
+    @Pattern(regexp = "^([A-Z]{1}[a-z0-9]+)( )([A-Z]{1}[a-z0-9]+)$",
              message = "Required format for name: Xxxx Xxxxx")
     private String name;
     @Pattern(regexp = "^0?(67|68|96|97|98|50|66|95|99|63|73|93|91|92|94)"
@@ -28,23 +28,26 @@ public class User {
         return new UserBuilder();
     }
 
-    public void setName(String name) {
-        this.name = name;
-        ValidatorUtility.validateModel(this);
-    }
-
-    public void setPhone(String phone) {
-        this.phone = phone;
-        ValidatorUtility.validateModel(this);
+    public User createCopy(){
+        return User.builder()
+                .id(this.id)
+                .name(this.name)
+                .phone(this.phone)
+                .build();
     }
 
 
     public static class UserBuilder {
-        private final UUID id = UUID.randomUUID();
+        private UUID id = UUID.randomUUID();
         private String name;
         private String phone;
 
         UserBuilder() {
+        }
+
+        public UserBuilder id(UUID id) {
+            this.id = id;
+            return this;
         }
 
         public UserBuilder name(String name) {
@@ -58,16 +61,7 @@ public class User {
         }
 
         public User build() {
-            User user = new User(id, name, phone);
-            ValidatorUtility.validateModel(user);
-            return user;
-        }
-
-        public String toString() {
-            return "User.UserBuilder(id=" + this.id + ", "
-                   + "name=" + this.name + ", "
-                   + "phone=" + this.phone
-                   + ")";
+            return new User(id, name, phone);
         }
     }
 }

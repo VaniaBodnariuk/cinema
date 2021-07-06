@@ -1,6 +1,5 @@
 package com.cinema.model;
 
-import com.cinema.utility.validator.ValidatorUtility;
 import lombok.*;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Pattern;
@@ -9,8 +8,9 @@ import java.util.UUID;
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 @Getter
-@ToString
+@Setter
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
+@ToString
 public class Genre {
     private UUID id;
     @EqualsAndHashCode.Include
@@ -22,13 +22,12 @@ public class Genre {
     private String name;
     private String description;
 
-    public void setName(String name) {
-        this.name = name;
-        ValidatorUtility.validateModel(this);
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
+    public Genre createCopy(){
+        return Genre.builder()
+                .id(this.id)
+                .name(this.name)
+                .description(this.description)
+                .build();
     }
 
     public static GenreBuilder builder() {
@@ -37,11 +36,16 @@ public class Genre {
 
 
     public static class GenreBuilder {
-        private final UUID id = UUID.randomUUID();
+        private UUID id = UUID.randomUUID();
         private String name;
         private String description;
 
         GenreBuilder() {
+        }
+
+        public GenreBuilder id(UUID id){
+            this.id = id;
+            return this;
         }
 
         public GenreBuilder name(String name) {
@@ -55,16 +59,7 @@ public class Genre {
         }
 
         public Genre build() {
-            Genre genre = new Genre(id, name, description);
-            ValidatorUtility.validateModel(genre);
-            return genre;
-        }
-
-        public String toString() {
-            return "Genre.GenreBuilder(id=" + this.id + ", "
-                   + "name=" + this.name + ", "
-                   + "description=" + this.description
-                   + ")";
+            return new Genre(id, name, description);
         }
     }
 }
