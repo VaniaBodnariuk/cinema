@@ -1,38 +1,45 @@
 package com.cinema.service.genre.impl;
 
 import com.cinema.model.Genre;
-import com.cinema.repository.genre.GenreFileRepository;
+import com.cinema.repository.genre.GenreRepository;
 import com.cinema.service.genre.GenreService;
 import lombok.RequiredArgsConstructor;
+
+import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
 
 @RequiredArgsConstructor
 public class GenreServiceImpl implements GenreService {
-    private final GenreFileRepository genreFileRepository;
+    private final GenreRepository genreRepository;
 
     @Override
-    public Genre create(Genre model) {
-        return genreFileRepository.create(model);
+    public void create(Genre model) {
+        genreRepository.create(model);
     }
 
     @Override
     public List<Genre> getAll() {
-        return genreFileRepository.getAll();
+        return genreRepository.getAll();
     }
 
     @Override
     public Genre getById(UUID id) {
-        return genreFileRepository.getById(id);
+        return genreRepository.getById(id);
     }
 
     @Override
-    public Genre update(Genre model) {
-        return genreFileRepository.update(model);
+    public void update(Genre model) {
+        genreRepository.update(model);
     }
 
     @Override
-    public Genre deleteById(UUID id) {
-        return genreFileRepository.deleteById(id);
+    public void deleteById(UUID id) {
+        genreRepository.deleteById(id);
+    }
+
+    @Override
+    public void synchronize() throws IOException {
+        genreRepository.synchronize();
     }
 }
