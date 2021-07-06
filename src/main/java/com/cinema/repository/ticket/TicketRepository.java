@@ -1,4 +1,4 @@
-package com.cinema.service.ticket;
+package com.cinema.repository.ticket;
 
 import com.cinema.basic.interfaces.CrudApi;
 import com.cinema.basic.interfaces.SaveToPersistenceApi;
@@ -11,8 +11,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-public interface TicketService extends CrudApi<Ticket, UUID>,
-                                       SaveToPersistenceApi {
+public interface TicketRepository extends CrudApi<Ticket, UUID>,
+                                          SaveToPersistenceApi {
     List<Movie> getMoviesByTicketForToday();
 
     List<User> getUsersByMovieAndDate(Movie movie,
@@ -23,5 +23,5 @@ public interface TicketService extends CrudApi<Ticket, UUID>,
     Map<Movie, Long> getMovieRatingByTicketsAmount();
 
     Map<Movie, Long> getMovieRatingByTicketsAmountInAscThatLess(
-                                              long ticketsAmount);
+            long ticketsAmount);
 }
