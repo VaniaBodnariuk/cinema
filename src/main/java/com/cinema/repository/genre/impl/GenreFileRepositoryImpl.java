@@ -4,69 +4,68 @@ import com.cinema.exception.UniqueFieldException;
 import com.cinema.exception.NotFoundException;
 import com.cinema.model.Genre;
 import com.cinema.model.Movie;
-import com.cinema.repository.genre.GenreFileRepository;
-import com.cinema.repository.movie.MovieFileRepository;
+import com.cinema.repository.genre.GenreRepository;
+import com.cinema.repository.movie.MovieRepository;
 import com.cinema.utility.file.basic.FileUtility;
-import java.io.IOException;
+import com.cinema.utility.validator.ValidatorUtility;
 import java.util.*;
 import java.util.stream.Stream;
+import static java.util.stream.Collectors.toList;
 
-public class GenreFileRepositoryImpl implements GenreFileRepository {
+public class GenreFileRepositoryImpl implements GenreRepository {
     private final FileUtility<Genre> fileUtility;
     private final Map<UUID, Genre> localStorage;
-    private final MovieFileRepository movieFileRepository;
+    private final MovieRepository movieRepository;
 
     public GenreFileRepositoryImpl(FileUtility<Genre> fileUtility,
-                                   MovieFileRepository movieFileRepository)
-            throws IOException {
+                                   MovieRepository movieRepository) {
         this.fileUtility = fileUtility;
-        this.localStorage = initLocalStorage();
-        this.movieFileRepository = movieFileRepository;
+        this.localStorage = getDataFromFileViaMap();
+        this.movieRepository = movieRepository;
     }
 
     @Override
-    public Genre create(Genre model) {
+    public void create(Genre model) {
+        ValidatorUtility.validateModel(model);
         checkNameForUniqueness(model);
         save(model);
-        return getById(model.getId());
     }
 
     @Override
     public List<Genre> getAll(){
-        return new ArrayList<>(localStorage.values());
+        return localStorage.values()
+                .stream()
+                .map(Genre::createCopy)
+                .collect(toList());
     }
 
     @Override
     public Genre getById(UUID id){
         checkIdForExisting(id);
-        return localStorage.get(id);
+        return localStorage.get(id).createCopy();
     }
 
     @Override
-    public Genre update(Genre model){
-        checkIdForExisting(model.getId());
-        checkNameForUniqueness(model);
+    public void update(Genre model){
+        ValidatorUtility.validateModel(model);
+        Genre oldModel = getById(model.getId());
+        if(!oldModel.equals(model)) {
+            checkNameForUniqueness(model);
+        }
         updateReferencesInMovies(model);
         save(model);
-        return getById(model.getId());
     }
 
     @Override
-    public Genre deleteById(UUID id){
+    public void deleteById(UUID id){
         checkIdForExisting(id);
         deleteReferencesInMovies(getById(id));
-        return localStorage.remove(id);
+        localStorage.remove(id);
     }
 
     @Override
-    public void saveDataToFile() throws IOException {
+    public void synchronize() {
         fileUtility.write(new ArrayList<>(localStorage.values()));
-    }
-
-    private Map<UUID, Genre> initLocalStorage() throws IOException {
-        return (fileUtility.getFile().length() == 0)
-                ? new HashMap<>()
-                : getDataFromFileViaMap();
     }
 
     private void save(Genre model){
@@ -74,37 +73,55 @@ public class GenreFileRepositoryImpl implements GenreFileRepository {
     }
 
     private void checkNameForUniqueness(Genre model) {
-        if(localStorage.containsValue(model)){
+        if(localStorage.containsValue(model)) {
             throw new UniqueFieldException(model.getClass().getName(),
-                                           model.getId(), "name");
+                                       model.getId(), "name");
         }
     }
 
     private void checkIdForExisting(UUID id){
-        if(!localStorage.containsKey(id)){
+        if(!localStorage.containsKey(id)) {
             throw new NotFoundException(Genre.class.getName(), id);
         }
     }
 
     private void updateReferencesInMovies(Genre model){
-        findReferencesInMovies(model).forEach(movie -> movie.getGenres()
-                                                            .add(model));
+        findReferencesInMovies(model).forEach(movie ->
+                updateReferenceInMovie(movie, model));
     }
+
+    private void updateReferenceInMovie(Movie movie, Genre genre){
+        movie.getGenres().add(genre);
+        movieRepository.update(movie);
+    }
+
+    private void deleteReferenceInMovie(Movie movie, Genre genre){
+        movie.getGenres().remove(genre);
+        movieRepository.update(movie);
+    }
+
 
     private void deleteReferencesInMovies(Genre model){
-        findReferencesInMovies(model).forEach(movie -> movie.getGenres()
-                                                            .remove(model));
+        findReferencesInMovies(model).forEach(movie ->
+                deleteReferenceInMovie(movie, model));
     }
 
-    private Map<UUID, Genre> getDataFromFileViaMap() throws IOException{
+    private Map<UUID, Genre> getDataFromFileViaMap() {
         List<Genre> dataList = fileUtility.read();
         return convertDataListToDataMap(dataList);
     }
 
     private Stream<Movie> findReferencesInMovies(Genre model){
-        return movieFileRepository.getAll()
+        return movieRepository.getAll()
                 .stream()
-                .filter(movie -> movie.getGenres().contains(model));
+                .filter(movie -> isMovieHasGenre(movie, model));
+    }
+
+    private boolean isMovieHasGenre(Movie movie, Genre requiredGenre){
+        return movie.getGenres()
+                .stream()
+                .anyMatch(genre -> genre.getId().equals(
+                                                 requiredGenre.getId()));
     }
 
     private Map<UUID, Genre> convertDataListToDataMap(List<Genre> dataList){
